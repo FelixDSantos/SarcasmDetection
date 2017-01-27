@@ -1,10 +1,9 @@
 
-import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 import numpy as np
 import random
-import pickle
+import json
 from collections import Counter
 
 lemmatizer = WordNetLemmatizer()
@@ -83,5 +82,5 @@ def CreateTweetTrainAndTest(sarcasmset,test_size = 0.1):
 sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
 if __name__ == '__main__':
     train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
-    with open('/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_1.pickle','wb') as f:
-        pickle.dump([train_x,train_y,test_x,test_y], f)
+    with open('/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_old.json', 'w') as outfile:
+        json.dump([train_x,train_y,test_x,test_y], outfile)

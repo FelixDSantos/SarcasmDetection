@@ -1,24 +1,20 @@
-
-
-import pickle
+# TODO RESTRUCTURE CODE
 import tensorflow as tf
 import numpy as np
+import json
 # one_hot meaning one is on and the rest is off
 # useful for multi-class classification
 # 10 classes, 0-9
 
-def loaddatafrompickle(path):
-    with (open(path, "rb")) as openfile:
-        while True:
-            try:
-                train_x, train_y, test_x, test_y = pickle.load(openfile)
-                return train_x,train_y,test_x,test_y
-            except EOFError:
-                break
+def loaddatafromjson(path):
+    with open(path) as openfile:
+            data = json.load(openfile)
+            return data
+
 
 # data used in ashwin paper
-sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_1.pickle'
-train_x,train_y,test_x,test_y = loaddatafrompickle(sarcasmdataset)
+sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_nolemmatize.json'
+train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
 n_nodes_hl1= 2000
 n_nodes_hl2=1000
@@ -72,7 +68,7 @@ def train_neural_network(x):
     # learning_rate = 0.001
     optimizer=tf.train.AdamOptimizer().minimize(cost)
 
-    hm_epochs = 15
+    hm_epochs = 20
 
     with tf.Session() as sess:
         # this begins the session
