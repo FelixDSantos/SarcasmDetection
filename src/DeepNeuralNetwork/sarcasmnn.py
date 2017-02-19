@@ -2,9 +2,6 @@ import sys
 import tensorflow as tf
 import numpy as np
 import json
-# one_hot meaning one is on and the rest is off
-# useful for multi-class classification
-# 10 classes, 0-9
 
 def loaddatafromjson(path):
     with open(path) as openfile:
@@ -15,6 +12,8 @@ def loaddatafromjson(path):
 # data used in ashwin paper
 sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_nolemmatize.json'
 train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
+
+
 
 n_nodes_hl1= 2000
 n_nodes_hl2=1000
