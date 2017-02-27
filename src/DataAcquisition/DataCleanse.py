@@ -99,8 +99,8 @@ DataToClean='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/TweetOnly.txt'
 
 def main():
     # removeNewLinesFromFile(DataToClean, "Data/Cleaned/sarcasmdataset_nonewlines.txt")
-    # removeHashtagsFromFile("Data/Cleaned/sarcasmdataset_nonewlines.txt", "Data/Cleaned/sarcasmdataset_removedhashtags.txt")
-    removeHttpLinks("Data/Cleaned/sarcasmdataset_removedhashtags.txt", "Data/Cleaned/SarcasmDataset_Final.txt")
+    removeHashtagsFromFile("/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt", "/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt1")
+    # removeHttpLinks("Data/Cleaned/sarcasmdataset_removedhashtags.txt", "Data/Cleaned/SarcasmDataset_Final.txt")
 if __name__ == "__main__": main()
 # testString= "@test Hello this is a tweet, i guess you could say it's!        #sarcastic #sarcasm        0"
 # testString1= "@jamietoomeylive when we were playing I was thinkin that xD		0"
@@ -116,6 +116,3 @@ if __name__ == "__main__": main()
 # newstring= ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)"," ",testString).split())
 # newstring= ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)","",testString).split())
 # print(newstring)
-
-
-

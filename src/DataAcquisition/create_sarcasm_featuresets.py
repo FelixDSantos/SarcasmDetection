@@ -31,9 +31,9 @@ def create_lexicon(sarcasmset):
     return l2
 
 
-def createFeaturesFromData(sample, lexicon):
+def createFeaturesFromData(data, lexicon):
     featureset=[]
-    with open(sample, 'r') as f:
+    with open(data, 'r') as f:
         header = next(f)
         # contents= f.readlines()
         for l in f:
@@ -54,6 +54,33 @@ def createFeaturesFromData(sample, lexicon):
             else:
                 print('No Label')
     return featureset
+
+def prepdata(file):
+    '''
+    This method is used alternatievly to the above method. It does not create feature vectors.
+    It only creates two lists. A list for the tweets and a list for the data
+    '''
+    tweet_x=[]
+    tweet_y=[]
+    with open(file , 'r') as f:
+        header = next(f)
+        for l in f:
+            l= l.strip().lower()
+            tweet=l[0:len(l)-3]
+            label = l[len(l)-1]
+
+            if(label == '1'):
+                tweet_x.append(tweet)
+                tweet_y.append([1,0])
+            elif(label == '0'):
+                tweet_x.append(tweet)
+                tweet_y.append([0,1])
+            else:
+                print("No Label")
+    return tweet_x,tweet_y
+
+
+# prepdata('/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt')
 # lex=create_lexicon('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt')
 #
 # fset= sample_handling('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt',lex)
@@ -105,7 +132,12 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
 
 # ashwin dataset:
 sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
+# Bamman and Smith
+# sarcasmdataset = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnSData/SarcasmDataset_Final.txt'
+
 if __name__ == '__main__':
     train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
-    with open('/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_old.json', 'w') as outfile:
+    outputlocation='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
+    with open(outputlocation, 'w') as outfile:
         json.dump([train_x,train_y,test_x,test_y], outfile)
+        print("File written to ", outputlocation)

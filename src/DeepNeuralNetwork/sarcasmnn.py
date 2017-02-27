@@ -2,6 +2,13 @@ import sys
 import tensorflow as tf
 import numpy as np
 import json
+sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DataAcquisition')
+import create_sarcasm_featuresets as dataprep
+# import DataAcquisition.create_sarcasm_featuresets as dataprep
+import time
+import os
+
+#TODO Add l2-regularization
 
 def loaddatafromjson(path):
     with open(path) as openfile:
@@ -10,80 +17,94 @@ def loaddatafromjson(path):
 
 
 # data used in ashwin paper
-sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_nolemmatize.json'
+sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
+# "Bamman and Smith paper"
+# sarcasmdataset ='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_bam_smith.json'
 train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
+print("Train/Test Split : {}/{}".format(len(train_y),len(test_y)))
+tweet_length= len(train_x[0])
+num_neurons1= 2000
+num_neurons2=1000
 
-
-n_nodes_hl1= 2000
-n_nodes_hl2=1000
-
-n_classes=2
+num_classes=2
 batch_size=300
-# tells the network to go through batches of 100 of features feed through the network, manipulate the weights and do another 100 and so on
+num_epochs=50
+test_every= 100
+runname=str(sys.argv[1])
+
+if(runname==None):
+    runname=str(int(time.time()))
+out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runname))
+
+x = tf.placeholder('float',[None, tweet_length], name ="x" )
+y=tf.placeholder('float', name= "y")
 
 
-x = tf.placeholder('float',[None, len(train_x[0])])
-y=tf.placeholder('float')
+def create_weights(shape):
+    W=tf.Variable(tf.truncated_normal(shape, stddev = 0.1), name="W")
+    # W=tf.Variable(tf.random_normal(shape), name="W")
+    return W
 
-# (inputdata*weights) +biases
-# we have a bias because if all the input data is 0, then 0*weights means we'd get a 0 and so no neuron would fire
-# adding a bias would just make it so that at least some neurons would fire, even if the inputs are 0
+def create_bias(length):
+    b = tf.Variable (tf.constant(0.1, shape=[length]), name = "b")
+    # b = tf.Variable(tf.random_normal([length]))
+    return(b)
 
-def neural_network_model(data):
-    '''
-    computation graph
-    this is our tensor flow model/nn model
-    '''
-    hidden_1_layer={'weights': tf.Variable(tf.random_normal([len(train_x[0]),n_nodes_hl1])),'biases':tf.Variable(tf.random_normal([n_nodes_hl1]))}
-    hidden_2_layer={'weights': tf.Variable(tf.random_normal([n_nodes_hl1,n_nodes_hl2])),'biases':tf.Variable(tf.random_normal([n_nodes_hl2]))}
-    # hidden_3_layer={'weights': tf.Variable(tf.random_normal([n_nodes_hl2,n_nodes_hl3])),'biases':tf.Variable(tf.random_normal([n_nodes_hl3]))}
-    output_layer={'weights': tf.Variable(tf.random_normal([n_nodes_hl2,n_classes])),'biases':tf.Variable(tf.random_normal([n_classes]))}
-
-    l1=tf.add(tf.matmul(data,hidden_1_layer['weights']),hidden_1_layer['biases'])
-    # goes through a threshold function/activation function {sigmoid} or {rectified linear}
-    # l1=tf.sigmoid(l1)
-    l1=tf.nn.relu(l1)
-
-    l2=tf.add(tf.matmul(l1,hidden_2_layer['weights']),hidden_2_layer['biases'])
-    # l2=tf.sigmoid(l2)
-    l2=tf.nn.relu(l2)
-
-    # l3=tf.add(tf.matmul(l2,hidden_3_layer['weights']),hidden_3_layer['biases'])
-    # l3=tf.nn.relu(l3)
-
-    output=tf.matmul(l2,output_layer['weights'])+output_layer['biases']
-
+def create_neural_network_layer(input, layer_name, num_input, num_outputs, use_relu = True):
+    with tf.name_scope(layer_name):
+        shape=[num_input,num_outputs]
+        Weights = create_weights(shape)
+        bias = create_bias(num_outputs)
+        output = tf.add(tf.matmul(input,Weights),bias)
+        if use_relu:
+            output = tf.nn.relu(output)
     return output
 
-sess=tf.Session()
+layer1 = create_neural_network_layer(input = x, layer_name="Hidden_Layer_1", num_input = tweet_length , num_outputs=num_neurons1)
+layer2 = create_neural_network_layer(input = layer1, layer_name="Hidden_Layer_2", num_input = num_neurons1 , num_outputs=num_neurons2)
+outputlayer = create_neural_network_layer(input = layer2, layer_name= "Output_Layer", num_input = num_neurons2, num_outputs = num_classes, use_relu=False)
+
+predictions = tf.argmax(outputlayer, 1, name="Predictions")
+
+with tf.name_scope("Cost"):
+    cross_ent = tf.nn.softmax_cross_entropy_with_logits(logits= outputlayer, labels =y)
+    cost = tf.reduce_mean(cross_ent)
+
+with tf.name_scope("Optimizer"):
+    global_step = tf.Variable(0, name="global_step", trainable= False)
+    optimizer = tf.train.AdamOptimizer()
+    grads = optimizer.compute_gradients(cost)
+    train_model = optimizer.apply_gradients(grads, global_step=global_step)
+
+with tf.name_scope("Accuracy"):
+    correct_pred=tf.equal(predictions, tf.argmax(y,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_pred,'float'), name="Accuracy")
+
+sess = tf.Session()
 
 
+"""
+Summaries
+"""
+cost_summary = tf.summary.scalar("Cost", cost)
+accuracy_summary = tf.summary.scalar("Accuracy", accuracy)
 
-prediction= neural_network_model(x)
-def train_neural_network(x,hm_iter=10):
-    # prediction= neural_network_model(x)
-    # using cross entropy with logits as the cost function
-    # which calculates the difference between the prediction we got vs the known label
-    cross_ent = tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels = y)
-    cost= tf.reduce_mean( cross_ent)
-    # we want to minimize this cost
+train_summary_operation = tf.summary.merge([cost_summary,accuracy_summary])
+train_summary_loc = os.path.join(out_dir, "summaries", "train")
+train_summary_writer = tf.summary.FileWriter(train_summary_loc,sess.graph)
 
-    # learning_rate = 0.001
-    optimizer=tf.train.AdamOptimizer().minimize(cost)
-    # hm_epochs = 20
-    sess.run(tf.global_variables_initializer())
-    # with tf.Session() as sess:
-        # this begins the session
-    # sess.run(tf.initialize_all_variables())
+test_summary_operation = tf.summary.merge([cost_summary,accuracy_summary])
+test_summary_loc = os.path.join(out_dir, "summaries", "test")
+test_summary_writer = tf.summary.FileWriter(test_summary_loc,sess.graph)
 
-    # train the network here:
+def train_neural_network(x,hm_iter):
+    num_batches=0
     for epoch in range(hm_iter):
         epoch_loss=0
-        # for _ in range(int(mnist.train.num_examples/batch_size)):
-        #     # chunks through the dataset for you
-        #     epoch_x,epoch_y = mnist.train.next_batch(batch_size)
+
         i=0
+
         while i<len(train_x):
             # take batches of the train
             start=i
@@ -94,30 +115,28 @@ def train_neural_network(x,hm_iter=10):
 
             feed_dict_train = {x: batch_x, y: batch_y}
             # optimizing the cost, by modifying the weights
-            _, c = sess.run([optimizer,cost],feed_dict=feed_dict_train)
+            _, step,trainsummary,c,trainacc = sess.run([train_model,global_step,train_summary_operation,cost, accuracy],feed_dict=feed_dict_train)
             epoch_loss+= c
             i+=batch_size
+            num_batches +=1
+            print("Training Step: {}|| Cost: {}, Accuracy: {}".format(num_batches,c,trainacc))
+            train_summary_writer.add_summary(trainsummary,step)
+            if(num_batches%test_every==0):
+                step, testsummary,testcost,testacc = sess.run([global_step,test_summary_operation,cost,accuracy],{x:test_x,y:test_y})
+                print("===================================Evaluation========================================")
+                print("\nEvaluation after {} batches feeded in|| Cost: {}, Accuracy: {}\n".format(num_batches,testcost,testacc))
+                print("=====================================================================================")
+                test_summary_writer.add_summary(testsummary,step)
         print('Epoch',epoch+1, 'completed out of', hm_iter,'loss:',epoch_loss)
-        # once these weights are trained
-        # we compare on the actual label
-        # tf.argmax is gonna return the idnex of the maximum value in the array
-        # hope that these indexes are the same
+        # calculate_acc("\nEvaluation: ",test_x,test_y)
 
+sess.run(tf.global_variables_initializer())
 
-        # feed_dict_test = {x: test_x,y:test_y}
-        # correct= tf.equal(tf.argmax(prediction,1), tf.argmax(y,1))
-        #
-        # accuracy=tf.reduce_mean(tf.cast(correct,'float'))
-        # print('Accuracy',accuracy.eval({x:test_x,y:test_y}))
+train_neural_network(x, num_epochs)
 
-def calculate_acc():
-    # prediction=neural_network_model(x)
-    correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-    acc = sess.run(accuracy,feed_dict={x:test_x,y:test_y})
-    print("Accuracy:",acc)
-
-hm_iter=int(sys.argv[1])
-train_neural_network(x,hm_iter)
-calculate_acc()
-# sess.close()
+step,testcost,testsummary,testacc = sess.run([global_step,cost,test_summary_operation,accuracy],{x:test_x,y:test_y})
+print("===================================Evaluation After Training========================================")
+print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
+print("====================================================================================================")
+test_summary_writer.add_summary(testsummary,step)
+sess.close()
