@@ -2,9 +2,14 @@ import sys
 import tensorflow as tf
 import numpy as np
 import json
+from sklearn.metrics import confusion_matrix
 sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DataAcquisition')
+sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/utilities')
+# print(sys.path)
 import create_sarcasm_featuresets as dataprep
+import plotutils as util
 # import DataAcquisition.create_sarcasm_featuresets as dataprep
+# import utilities.plotutils as util
 import time
 import os
 
@@ -21,6 +26,7 @@ sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm
 # "Bamman and Smith paper"
 # sarcasmdataset ='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_bam_smith.json'
 train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
+test_class=np.argmax(test_y,axis=1)
 
 print("Train/Test Split : {}/{}".format(len(train_y),len(test_y)))
 tweet_length= len(train_x[0])
@@ -31,10 +37,10 @@ num_classes=2
 batch_size=300
 num_epochs=50
 test_every= 100
-runname=str(sys.argv[1])
-
-if(runname==None):
+if(len(sys.argv)==0):
     runname=str(int(time.time()))
+else:
+    runname=str(sys.argv[1])
 out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runname))
 
 x = tf.placeholder('float',[None, tweet_length], name ="x" )
@@ -127,6 +133,7 @@ def train_neural_network(x,hm_iter):
                 print("\nEvaluation after {} batches feeded in|| Cost: {}, Accuracy: {}\n".format(num_batches,testcost,testacc))
                 print("=====================================================================================")
                 test_summary_writer.add_summary(testsummary,step)
+
         print('Epoch',epoch+1, 'completed out of', hm_iter,'loss:',epoch_loss)
         # calculate_acc("\nEvaluation: ",test_x,test_y)
 
@@ -134,9 +141,14 @@ sess.run(tf.global_variables_initializer())
 
 train_neural_network(x, num_epochs)
 
-step,testcost,testsummary,testacc = sess.run([global_step,cost,test_summary_operation,accuracy],{x:test_x,y:test_y})
+test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost,test_summary_operation,accuracy],{x:test_x,y:test_y})
 print("===================================Evaluation After Training========================================")
 print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
 print("====================================================================================================")
 test_summary_writer.add_summary(testsummary,step)
+
+
+util.plot_conf_matrix(test_class, test_pred)
+
+
 sess.close()
