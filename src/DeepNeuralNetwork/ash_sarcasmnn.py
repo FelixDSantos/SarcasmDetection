@@ -46,14 +46,14 @@ print("Test out Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(te
 print("Held out Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(heldcounts[0],heldcounts[1]))
 print("===============================================================")
 tweet_length= len(train_x[0])
-num_neurons1= 30
+num_neurons1= 190
 # num_neurons2=30
 
 num_classes=2
 batch_size=300
 num_epochs=300
 test_every= 50
-
+lamb = 0.005
 parser = argparse.ArgumentParser(description='Neural Network Arguments')
 parser.add_argument('-summary', action='store', dest='runname',default=str(int((time.time()))),
                     help='Store a runname value')
@@ -64,7 +64,7 @@ out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runn
 
 x = tf.placeholder('float',[None, tweet_length], name ="x" )
 y=tf.placeholder('float', name= "y")
-
+keep_prob = tf.placeholder("float")
 
 def create_weights(shape):
     W=tf.Variable(tf.truncated_normal(shape, stddev = 0.1), name="W")
@@ -84,23 +84,27 @@ def create_neural_network_layer(input, layer_name, num_input, num_outputs, use_r
         output = tf.add(tf.matmul(input,Weights),bias)
         if use_relu:
             output = tf.nn.relu(output)
-    return output
+    return output,Weights
 
-layer1 = create_neural_network_layer(input = x, layer_name="Hidden_Layer_1", num_input = tweet_length , num_outputs=num_neurons1)
+layer1, Weights_1 = create_neural_network_layer(input = x, layer_name="Hidden_Layer_1", num_input = tweet_length , num_outputs=num_neurons1)
+l1dropout= tf.nn.dropout(layer1, keep_prob)
 # layer2 = create_neural_network_layer(input = layer1, layer_name="Hidden_Layer_2", num_input = num_neurons1 , num_outputs=num_neurons2)
 # outputlayer = create_neural_network_layer(input = layer2, layer_name= "Output_Layer", num_input = num_neurons2, num_outputs = num_classes, use_relu=False)
-outputlayer = create_neural_network_layer(input = layer1, layer_name= "Output_Layer", num_input = num_neurons1, num_outputs = num_classes, use_relu=False)
+outputlayer,Weights_Out = create_neural_network_layer(input = l1dropout, layer_name= "Output_Layer", num_input = num_neurons1, num_outputs = num_classes, use_relu=False)
 
 predictions = tf.argmax(outputlayer, 1, name="Predictions")
 
 with tf.name_scope("Cost"):
     cross_ent = tf.nn.softmax_cross_entropy_with_logits(logits= outputlayer, labels =y)
     cost = tf.reduce_mean(cross_ent)
+    # l2 regularization with decaying lambda
+    reg = lamb*(tf.nn.l2_loss(Weights_1)+ tf.nn.l2_loss(Weights_Out))
+    cost_l2=tf.reduce_mean(cost+ reg)
 
 with tf.name_scope("Optimizer"):
     global_step = tf.Variable(0, name="global_step", trainable= False)
     optimizer = tf.train.AdamOptimizer()
-    grads = optimizer.compute_gradients(cost)
+    grads = optimizer.compute_gradients(cost_l2)
     train_model = optimizer.apply_gradients(grads, global_step=global_step)
 
 with tf.name_scope("Accuracy"):
@@ -113,7 +117,7 @@ sess = tf.Session()
 """
 Summaries
 """
-cost_summary = tf.summary.scalar("Cost", cost)
+cost_summary = tf.summary.scalar("Cost", cost_l2)
 accuracy_summary = tf.summary.scalar("Accuracy", accuracy)
 
 train_summary_operation = tf.summary.merge([cost_summary,accuracy_summary])
@@ -131,13 +135,14 @@ def train_neural_network(data):
     num_batches=0
     for batch in data:
         batch_x, batch_y = zip(*batch)
-        feed_dict_train = {x: batch_x, y: batch_y}
-        _, step,trainsummary,c,trainacc = sess.run([train_model,global_step,train_summary_operation,cost, accuracy],feed_dict=feed_dict_train)
+        # keep 0.5 neurons for training
+        feed_dict_train = {x: batch_x, y: batch_y, keep_prob: 0.5}
+        _, step,trainsummary,c,trainacc = sess.run([train_model,global_step,train_summary_operation,cost_l2, accuracy],feed_dict=feed_dict_train)
         num_batches +=1
         print("Training Step: {}|| Cost: {}, Accuracy: {}".format(num_batches,c,trainacc))
         train_summary_writer.add_summary(trainsummary,step)
         if(num_batches%test_every==0):
-            step, testsummary,testcost,testacc = sess.run([global_step,test_summary_operation,cost,accuracy],{x:test_x,y:test_y})
+            step, testsummary,testcost,testacc = sess.run([global_step,test_summary_operation,cost_l2,accuracy],{x:test_x,y:test_y,keep_prob:1.0})
             print("===================================Evaluation========================================")
             print("\nEvaluation after {} batches feeded in|| Cost: {}, Accuracy: {}\n".format(num_batches,testcost,testacc))
             print("=====================================================================================")
@@ -149,7 +154,7 @@ def train_neural_network(data):
 
 sess= tf.Session()
 sess.run(tf.global_variables_initializer())
-beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost,test_summary_operation,accuracy],{x:test_x,y:test_y})
+beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
 print("===================================Evaluation Before Training========================================")
 print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
 print("=====================================================================================================")
@@ -158,7 +163,7 @@ test_summary_writer.add_summary(beforetrain_summary,beforestep)
 trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
 train_neural_network(trainbatches)
 
-test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost,test_summary_operation,accuracy],{x:test_x,y:test_y})
+test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
 print("===================================Evaluation After Training On Testing Set========================================")
 print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
 print("===================================================================================================================")

@@ -28,13 +28,15 @@ def create_lexicon(sarcasmset):
     for w in w_counts:
         if 1500>w_counts[w]>50:
             l2.append(w)
+    print("Lexicon created with vocabulary size {}".format(len(l2)))
     return l2
 
 
-def createFeaturesFromData(data, lexicon):
+def createFeaturesFromData(data, lexicon,header=True):
     featureset=[]
     with open(data, 'r') as f:
-        header = next(f)
+        if(header==True):
+            header = next(f)
         # contents= f.readlines()
         for l in f:
             fullline=word_tokenize(l.lower())
@@ -48,9 +50,9 @@ def createFeaturesFromData(data, lexicon):
                     features[index_value]+= 1
             features=list(features)
             if(label=='1'):
-                featureset.append([features,[1,0]])
-            elif(label=='0'):
                 featureset.append([features,[0,1]])
+            elif(label=='0'):
+                featureset.append([features,[1,0]])
             else:
                 print('No Label')
     return featureset
@@ -85,27 +87,48 @@ def prepdata(file):
 #
 # fset= sample_handling('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt',lex)
 
-def CreateTweetTrainAndTest(sarcasmset,test_size = 0.1):
-    lexicon = create_lexicon(sarcasmset)
+def CreateTweetFeatures(sarcasmset,lexicon):
+    # lexicon = create_lexicon(sarcasmset)
     features=[]
     features+=createFeaturesFromData(sarcasmset,lexicon)
-    random.shuffle(features)
+    # random.shuffle(features)
     features=np.array(features)
 
     # features are in the shape [[[0,1,1,1,0],[1,0]],[[1,1,1,0,0],[0,1]]]
     #  [features,label]
-    testing_size = int(test_size*len(features))
+    # testing_size = int(test_size*len(features))
 
-    train_x = list(features[:,0][:-testing_size])
-    train_y = list(features[:,1][:-testing_size])
-
-    test_x = list(features[:,0][-testing_size:])
-    test_y = list(features[:,1][-testing_size:])
-
-    return train_x,train_y,test_x,test_y
+    x=features[:,0]
+    y=features[:,1]
+    # train_x = list(features[:,0][:-testing_size])
+    # train_y = list(features[:,1][:-testing_size])
+    #
+    # test_x = list(features[:,0][-testing_size:])
+    # test_y = list(features[:,1][-testing_size:])
+    print("{} Tweet Features Created".format(len(y)))
+    return x,y
 #
+def partitionDataToTrainandTest(x,y,trainingpercent):
+    trainingsize=np.floor((trainingpercent/100)*(len(y))).astype(int)
+    shufflindx=np.random.permutation(np.arange(len(y)))
+    # y=np.asarray(y)
 
+    x,y=x[shufflindx],y[shufflindx]
+    x_train , y_train = x[0:trainingsize], y[0:trainingsize]
+    x_test , y_test = x[trainingsize:len(y)], y[trainingsize:len(y)]
+    return(x_train,y_train,x_test,y_test)
 
+def holdoutdata(x,y,holdoutpercent,shuffle=True):
+    validationsize = np.floor((holdoutpercent/100)*len(y)).astype(int)
+    # x,y=np.asarray(x),np.asarray(y)
+    x,y=np.array(x),np.array(y)
+    if(shuffle):
+        shuffleindx = np.random.permutation(np.arange(len(y)))
+        x,y=x[shuffleindx],y[shuffleindx]
+    x,y = list(x[0:(len(y)-validationsize)]),list(y[0:(len(y)-validationsize)])
+    x_val,y_val =list(x[(len(y)-validationsize):len(y)]),list(y[(len(y)-validationsize):len(y)])
+
+    return(x,y,x_val,y_val)
 def batch_iter(data, batch_size , num_epochs , shuffle = True):
     """
     Generates a batch iterator for a dataset.
@@ -131,13 +154,16 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
 
 
 # ashwin dataset:
-sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
+ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
 # Bamman and Smith
 # sarcasmdataset = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnSData/SarcasmDataset_Final.txt'
 
 if __name__ == '__main__':
-    train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
-    outputlocation='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
+    # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
+    lexicon=create_lexicon(ashwinsarcasmdataset)
+    features,labels= CreateTweetFeatures(ashwinsarcasmdataset,lexicon)
+    features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=5)
+    outputlocation='/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/ashwinLexAndFeatures.json'
     with open(outputlocation, 'w') as outfile:
-        json.dump([train_x,train_y,test_x,test_y], outfile)
+        json.dump([lexicon,features,labels,held_outfeatures,heldout_labels], outfile)
         print("File written to ", outputlocation)
