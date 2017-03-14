@@ -6,14 +6,13 @@ sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DataAcquisition
 sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/utilities')
 # print(sys.path)
 import create_sarcasm_featuresets as dataprep
-from plotutils import plot_conf_matrix
+import plotutils as utils
 # import DataAcquisition.create_sarcasm_featuresets as dataprep
-# import utilities.plotutils as util
+# import utilities.plotutils as utils
 import time
 import os
 import argparse
-
-#TODO Add l2-regularization
+import pandas as pd
 
 def loaddatafromjson(path):
     with open(path) as openfile:
@@ -27,13 +26,15 @@ def loadLexAndFeaturesfromjson(path):
 
             return lexicon,features,labels,heldout_x,heldout_y
 # data used in ashwin paper
-sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
+# sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
 # "Bamman and Smith paper"
 # sarcasmdataset ='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_bam_smith.json'
 # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
-lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/ashwinLexAndFeatures.json")
-train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,90.5)
+
+lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/AshFeaturesWithAshBmsLex")
+lenwholeset=(len(labels)+len(heldout_y))
+train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)
 val_class = np.argmax(heldout_y,axis=1)
 helduniq, heldcounts = np.unique(np.argmax(heldout_y,axis=1), return_counts=True)
@@ -42,16 +43,16 @@ testuniq,testcounts = np.unique(test_class,return_counts=True)
 print("===============================================================")
 print("Train/Test/Validation Split : {}/{}/{}".format(len(train_y),len(test_y),len(heldout_y)))
 print("Train Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(traincounts[0],traincounts[1]))
-print("Test out Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(testcounts[0],testcounts[1]))
+print("Test Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(testcounts[0],testcounts[1]))
 print("Held out Data set Non-Sarcastic/Sarcastic Tweets Split: {}/{} ".format(heldcounts[0],heldcounts[1]))
 print("===============================================================")
 tweet_length= len(train_x[0])
-num_neurons1= 190
+num_neurons1= 50
 # num_neurons2=30
 
 num_classes=2
 batch_size=300
-num_epochs=300
+num_epochs=50
 test_every= 50
 lamb = 0.005
 parser = argparse.ArgumentParser(description='Neural Network Arguments')
@@ -132,6 +133,7 @@ test_summary_writer = tf.summary.FileWriter(test_summary_loc,sess.graph)
 sess.run(tf.global_variables_initializer())
 
 def train_neural_network(data):
+    testconf = np.zeros(shape=(3,3)).astype(int)
     num_batches=0
     for batch in data:
         batch_x, batch_y = zip(*batch)
@@ -142,12 +144,20 @@ def train_neural_network(data):
         print("Training Step: {}|| Cost: {}, Accuracy: {}".format(num_batches,c,trainacc))
         train_summary_writer.add_summary(trainsummary,step)
         if(num_batches%test_every==0):
-            step, testsummary,testcost,testacc = sess.run([global_step,test_summary_operation,cost_l2,accuracy],{x:test_x,y:test_y,keep_prob:1.0})
+            step, testsummary,testcost,testacc,testpred = sess.run([global_step,test_summary_operation,cost_l2,accuracy,predictions],{x:test_x,y:test_y,keep_prob:1.0})
             print("===================================Evaluation========================================")
             print("\nEvaluation after {} batches feeded in|| Cost: {}, Accuracy: {}\n".format(num_batches,testcost,testacc))
             print("=====================================================================================")
             test_summary_writer.add_summary(testsummary,step)
+            confmatfortest=utils.plot_conf_matrix(test_class,testpred).as_matrix()
+            testconf=testconf+(confmatfortest)
 
+    testconf=pd.DataFrame(testconf, columns=['0','1','All'])
+    # testconf.index=['0','1','All']
+    # print(testconf)
+    testconf.index=['0','1','All']
+    print(testconf)
+    utils.calculateModelStats(testconf)
         # print('Epoch',epoch+1, 'completed out of', hm_iter,'loss:',epoch_loss)
         # calculate_acc("\nEvaluation: ",test_x,test_y)
 
@@ -173,11 +183,15 @@ test_summary_writer.add_summary(testsummary,step)
 # ==========================================
 # Uncomment if want to test model on validation set
 # ==========================================
-# val_pred,valcost,valacc=sess.run([predictions,cost,accuracy],{x:heldout_x,y:heldout_y})
+# val_pred,valcost,valacc=sess.run([predictions,cost,accuracy],{x:heldout_x,y:heldout_y,keep_prob:1.0})
+# print("")
+# print("")
+# print("")
 # print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_y)))
 # print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
 # print("====================================================================================================================")
-#
-# plot_conf_matrix(val_class,val_pred)
-
+# validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
+# validationconfmatrix.index=['0','1','All']
+# validationconfmatrix.columns = ['0', '1','All']
+# utils.calculateModelStats(validationconfmatrix)
 sess.close()

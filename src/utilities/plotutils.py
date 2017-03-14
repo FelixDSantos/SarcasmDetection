@@ -37,11 +37,12 @@ def plot_conf_matrix(y_true, y_pred):
     y_pred = pd.Series(y_pred)
 
     confmatrix=pd.crosstab(y_true,y_pred, rownames = ['True'], colnames=['Predicted'],margins=True)
-
+    # confmatrix.index=['0','1','All']
     print("============================================Confusion_matrix=======================================")
     print(confmatrix)
     print("====================================================================================================")
 
+    return(confmatrix)
 def plotlearningcurve(trainresults,testresults,getevery,TitleOfPlot,savedname,savePlotToFile=False):
     traindatares=pd.read_csv(trainresults,header=0,names=['Time','Step','Value'])
     testdatares=pd.read_csv(testresults,header=0,names=['Time','Step','Value'])
@@ -72,6 +73,31 @@ def plotlearningcurve(trainresults,testresults,getevery,TitleOfPlot,savedname,sa
         plt.savefig(plotsavedir,bbox_inches='tight')
     plt.show()
 
+def calculaterecall(confmatrix):
+    numtruepos=confmatrix.loc['1']['1']
+    numAllTrue=confmatrix.loc['1']['All']
+    recall = (numtruepos)/(numAllTrue)
+    return(recall)
+
+def calculateprecision(confmatrix):
+    numtruepos=confmatrix.loc['1']['1']
+    numClassedAsPos=confmatrix.loc['All']['1']
+    precision= numtruepos/numClassedAsPos
+    return(precision)
+
+def calculateF1(r,p):
+    f1= 2*((p*r)/(p+r))
+    return(f1)
+
+def calculateModelStats(confmatrix):
+    r=calculaterecall(confmatrix)
+    p=calculateprecision(confmatrix)
+    F1=calculateF1(r,p)
+    print("===================================Model Stats For Sarcasm Classification accuracy========================================")
+    print('Recall:{}'.format(r))
+    print('Precision:{}'.format(p))
+    print('F1 Score:{}'.format(F1))
+    print("==========================================================================================================================")
 if __name__ == '__main__':
     # Plot learning curve for neural network with 1 layers 500 neurons on ashwin Dataset
     trainresults,testresults,plottitle,savedname = getparams()

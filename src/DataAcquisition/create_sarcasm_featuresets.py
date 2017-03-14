@@ -5,9 +5,14 @@ import numpy as np
 import random
 import json
 from collections import Counter
-
+import argparse
 lemmatizer = WordNetLemmatizer()
-
+# ashwin dataset:
+ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
+# Bamman and Smith
+bMssarcasmdataset = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnSData/SarcasmDataset_Final.txt'
+# both datasets together
+ABmssarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnsAndAsh/bnsandash.txt'
 def create_lexicon(sarcasmset):
     # create a lexicon with all strings in positive and negative datasets
     lexicon=[]
@@ -108,11 +113,10 @@ def CreateTweetFeatures(sarcasmset,lexicon):
     print("{} Tweet Features Created".format(len(y)))
     return x,y
 #
-def partitionDataToTrainandTest(x,y,trainingpercent):
-    trainingsize=np.floor((trainingpercent/100)*(len(y))).astype(int)
+def partitionDataToTrainandTest(x,y,lenwholeset,trainingpercent):
+    trainingsize=np.floor((trainingpercent/100)*(lenwholeset)).astype(int)
     shufflindx=np.random.permutation(np.arange(len(y)))
     # y=np.asarray(y)
-
     x,y=x[shufflindx],y[shufflindx]
     x_train , y_train = x[0:trainingsize], y[0:trainingsize]
     x_test , y_test = x[trainingsize:len(y)], y[trainingsize:len(y)]
@@ -151,19 +155,35 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
             start_index = batch_num * batch_size
             end_index = min((batch_num+1)*batch_size, data_size)
             yield shuffled_data[start_index:end_index]
+def getparams():
+    parser = argparse.ArgumentParser(description='Create Features')
+    parser.add_argument('-s', action='store', dest='sarcasmdataset',
+                        help='Choose Sarcasm Dataset for Training- a:ashwin,b:bamman and smith,ab: Both Ash and bamman data')
+    parser.add_argument('-l', action='store', dest='lexicondataset',
+                        help='Choose Dataset for Creating lexicon- a:ashwin,b:bamman and smith,ab: Both Ash and bamman data')
+    parser.add_argument('-o', action='store', dest='output',default='../../FeatureData/features.json',help='Outputlocation for features json.')
+    parser.add_argument('-hold', action='store', dest='holdoutpercent',default='10',help='The percentage of data to hold out.')
+    args = parser.parse_args()
+    datachoice=args.sarcasmdataset
+    outputlocation=args.output
+    holdoutpercent=float(args.holdoutpercent)
+    lexchoice=args.lexicondataset
+    datasets={'a':ashwinsarcasmdataset,'b':bMssarcasmdataset,'ab':ABmssarcasmdataset}
 
+    datasetloc=datasets.get(datachoice)
+    lexicondataset = datasets.get(lexchoice)
 
-# ashwin dataset:
-ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
-# Bamman and Smith
-# sarcasmdataset = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnSData/SarcasmDataset_Final.txt'
+    print("Lexicon Dataset from:{}".format(lexicondataset))
+    print("Sarcasm Dataset For training:{}".format(datasetloc))
+    return(datasetloc,outputlocation,lexicondataset,holdoutpercent)
 
 if __name__ == '__main__':
     # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
-    lexicon=create_lexicon(ashwinsarcasmdataset)
-    features,labels= CreateTweetFeatures(ashwinsarcasmdataset,lexicon)
-    features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=5)
-    outputlocation='/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/ashwinLexAndFeatures.json'
+    sarcasmdataset,outputlocation,lexiconloc,holdoutperc=getparams()
+    lexicon=create_lexicon(lexiconloc)
+    features,labels= CreateTweetFeatures(sarcasmdataset,lexicon)
+    features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=holdoutperc)
+    print("Held Out dataset {} Features".format(len(heldout_labels)))
     with open(outputlocation, 'w') as outfile:
         json.dump([lexicon,features,labels,held_outfeatures,heldout_labels], outfile)
         print("File written to ", outputlocation)
