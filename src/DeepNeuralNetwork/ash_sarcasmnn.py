@@ -32,7 +32,7 @@ def loadLexAndFeaturesfromjson(path):
 # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
 
-lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/AshFeaturesWithAshBmsLex")
+lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/ashfeaturesandlex_holdout_10")
 lenwholeset=(len(labels)+len(heldout_y))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)

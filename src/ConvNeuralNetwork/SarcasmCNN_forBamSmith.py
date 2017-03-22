@@ -24,7 +24,7 @@ def loadFeaturesfromjson(path):
 # # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 # train_x,train_y,test_x,test_y = loaddatafromjson(sentimentdataset)
 
-vocabsize,tweets,labels,heldout_tweets,heldout_labels=loadFeaturesfromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Ash_CNNFEATS_with10percentholdout_w_vocab')
+vocabsize,tweets,labels,heldout_tweets,heldout_labels=loadFeaturesfromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/Results/BamAndSmith_CNNFEATS_with10percentholdout_w_vocab')
 
 lenwholeset=(len(labels)+len(heldout_labels))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(tweets,labels,lenwholeset,80)
@@ -49,7 +49,7 @@ out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runn
 # ================================
 #Paramaters
 # tweet_length= 376
-num_epochs=25
+num_epochs=30
 batch_size =300
 test_every=15
 data_length = train_x.shape[1]
@@ -61,8 +61,11 @@ num_filters1=64
 # num_filters2=128
 fc_size= 32
 embedding_size=128
-lamb =0.575
+lamb =0.675
 keepdrop=0.35
+minclip=-0.00000005
+maxclip=0.00000005
+
 # ================================
 # ================================
 #PLACEHOLDERS
@@ -161,7 +164,7 @@ with tf.name_scope("Optimizer"):
     grads = optimizer.compute_gradients(cost_l2)
     # train_model=optimizer.apply_gradients(grads,global_step=global_step)
     # gradient clipping
-    capped_grads_and_vars = [(tf.clip_by_value(grad, -0.0001, 0.0001), var) for grad, var in grads]
+    capped_grads_and_vars = [(tf.clip_by_value(grad, minclip, maxclip), var) for grad, var in grads]
     train_model=optimizer.apply_gradients(capped_grads_and_vars,global_step=global_step)
 
 
@@ -238,15 +241,15 @@ trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_
 train_network(trainbatches)
 
 # Uncomment if evaluating on held out dataset
-val_pred,valcost,valacc=session.run([predictions,cost_l2,accuracy],{x:heldout_tweets,y:heldout_labels,dropoutprob:1.0})
-print("")
-print("")
-print("")
-print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_labels)))
-print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
-print("====================================================================================================================")
-validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
-validationconfmatrix.index=['0','1','All']
-validationconfmatrix.columns = ['0', '1','All']
-utils.calculateModelStats(validationconfmatrix)
+# val_pred,valcost,valacc=session.run([predictions,cost_l2,accuracy],{x:heldout_tweets,y:heldout_labels,dropoutprob:1.0})
+# print("")
+# print("")
+# print("")
+# print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_labels)))
+# print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
+# print("====================================================================================================================")
+# validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
+# validationconfmatrix.index=['0','1','All']
+# validationconfmatrix.columns = ['0', '1','All']
+# utils.calculateModelStats(validationconfmatrix)
 # session.close()

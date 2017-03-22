@@ -6,7 +6,11 @@ import random
 import json
 from collections import Counter
 import argparse
+from tensorflow.contrib import learn
+
 lemmatizer = WordNetLemmatizer()
+# Paramaters
+makejsonfor='c'
 # ashwin dataset:
 ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
 # Bamman and Smith
@@ -62,10 +66,34 @@ def createFeaturesFromData(data, lexicon,header=True):
                 print('No Label')
     return featureset
 
+# def prepdata(file):
+#     '''
+#     This method is used alternatievly to the above method. It does not create feature vectors.
+#     It only creates two lists. A list for the tweets and a list for the labels
+#     '''
+#     tweet_x=[]
+#     tweet_y=[]
+#     with open(file , 'r') as f:
+#         header = next(f)
+#         for l in f:
+#             l= l.strip().lower()
+#             tweet=l[0:len(l)-3]
+#             label = l[len(l)-1]
+#
+#             if(label == '1'):
+#                 tweet_x.append(tweet)
+#                 tweet_y.append([1,0])
+#             elif(label == '0'):
+#                 tweet_x.append(tweet)
+#                 tweet_y.append([0,1])
+#             else:
+#                 print("No Label")
+#     return tweet_x,tweet_y
+
 def prepdata(file):
     '''
     This method is used alternatievly to the above method. It does not create feature vectors.
-    It only creates two lists. A list for the tweets and a list for the data
+    It only creates two lists. A list for the tweets and a list for the labels
     '''
     tweet_x=[]
     tweet_y=[]
@@ -85,8 +113,6 @@ def prepdata(file):
             else:
                 print("No Label")
     return tweet_x,tweet_y
-
-
 # prepdata('/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt')
 # lex=create_lexicon('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt')
 #
@@ -122,16 +148,15 @@ def partitionDataToTrainandTest(x,y,lenwholeset,trainingpercent):
     x_test , y_test = x[trainingsize:len(y)], y[trainingsize:len(y)]
     return(x_train,y_train,x_test,y_test)
 
-def holdoutdata(x,y,holdoutpercent,shuffle=True):
+def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
     validationsize = np.floor((holdoutpercent/100)*len(y)).astype(int)
     # x,y=np.asarray(x),np.asarray(y)
     x,y=np.array(x),np.array(y)
     if(shuffle):
         shuffleindx = np.random.permutation(np.arange(len(y)))
         x,y=x[shuffleindx],y[shuffleindx]
-    x,y = list(x[0:(len(y)-validationsize)]),list(y[0:(len(y)-validationsize)])
-    x_val,y_val =list(x[(len(y)-validationsize):len(y)]),list(y[(len(y)-validationsize):len(y)])
-
+    x,y = (x[0:(len(y)-validationsize)]).tolist(),(y[0:(len(y)-validationsize)]).tolist()
+    x_val,y_val =(x[(len(y)-validationsize):len(y)]),(y[(len(y)-validationsize):len(y)])
     return(x,y,x_val,y_val)
 def batch_iter(data, batch_size , num_epochs , shuffle = True):
     """
@@ -140,7 +165,7 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
     data = np.array(data)
     data_size = len(data)
     num_batches_per_epoch = int((len(data)-1)/batch_size)+1
-
+    print("Num of batches per epoch: ",num_batches_per_epoch)
     for epoch in range(num_epochs):
         #shuffle the data at each epoch
 
@@ -155,15 +180,35 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
             start_index = batch_num * batch_size
             end_index = min((batch_num+1)*batch_size, data_size)
             yield shuffled_data[start_index:end_index]
-def getparams():
+
+def buildvocab(tweets):
+    # this takes each word in dataset and changes it to an integer
+    # creates a vocabulary for each word
+    # no lemmatizing or any other word preprocessing done
+    # returns list of tweet features and a vocabulary
+
+    maxtweetlength = max([len(tweet.split(" ")) for tweet in tweets])
+    vocabproc = learn.preprocessing.VocabularyProcessor(maxtweetlength)
+
+    # creating a vocabulary of the tweets as well as making features of length-max_document_length out of each tweet
+    tweet_feats = np.array(list(vocabproc.fit_transform(tweets)))
+    vocabsize = len(vocabproc.vocabulary_)
+    print("Vocabulary Size: ",vocabsize)
+    print("{} tweet features created.".format(len(tweet_feats)))
+    return(vocabsize,tweet_feats)
+
+
+def getparamsfornn():
     parser = argparse.ArgumentParser(description='Create Features')
-    parser.add_argument('-s', action='store', dest='sarcasmdataset',
+    parser.add_argument('-network', action='store', dest='networktype',default='c',help='Features to be tailored for networktype')
+    parser.add_argument('-s', action='store', dest='sarcasmdataset',default='a',
                         help='Choose Sarcasm Dataset for Training- a:ashwin,b:bamman and smith,ab: Both Ash and bamman data')
-    parser.add_argument('-l', action='store', dest='lexicondataset',
+    parser.add_argument('-l', action='store', dest='lexicondataset',default='a',
                         help='Choose Dataset for Creating lexicon- a:ashwin,b:bamman and smith,ab: Both Ash and bamman data')
     parser.add_argument('-o', action='store', dest='output',default='../../FeatureData/features.json',help='Outputlocation for features json.')
     parser.add_argument('-hold', action='store', dest='holdoutpercent',default='10',help='The percentage of data to hold out.')
     args = parser.parse_args()
+    networktype=args.networktype
     datachoice=args.sarcasmdataset
     outputlocation=args.output
     holdoutpercent=float(args.holdoutpercent)
@@ -175,15 +220,30 @@ def getparams():
 
     print("Lexicon Dataset from:{}".format(lexicondataset))
     print("Sarcasm Dataset For training:{}".format(datasetloc))
-    return(datasetloc,outputlocation,lexicondataset,holdoutpercent)
+    return(networktype,datasetloc,outputlocation,lexicondataset,holdoutpercent)
 
+
+#
 if __name__ == '__main__':
     # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
-    sarcasmdataset,outputlocation,lexiconloc,holdoutperc=getparams()
-    lexicon=create_lexicon(lexiconloc)
-    features,labels= CreateTweetFeatures(sarcasmdataset,lexicon)
-    features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=holdoutperc)
-    print("Held Out dataset {} Features".format(len(heldout_labels)))
-    with open(outputlocation, 'w') as outfile:
-        json.dump([lexicon,features,labels,held_outfeatures,heldout_labels], outfile)
-        print("File written to ", outputlocation)
+    networktype,sarcasmdataset,outputlocation,lexiconloc,holdoutperc=getparamsfornn()
+
+    if(networktype=='d'):
+        lexicon=create_lexicon(lexiconloc)
+        features,labels= CreateTweetFeatures(sarcasmdataset,lexicon)
+        features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=holdoutperc)
+        print("Held Out dataset {} Features".format(len(heldout_labels)))
+        with open(outputlocation, 'w') as outfile:
+            json.dump([lexicon,features,labels,held_outfeatures,heldout_labels], outfile)
+            print("File written to ", outputlocation)
+    elif(networktype=='c'):
+        tweetx,tweety=prepdata(sarcasmdataset)
+        tweety=np.array(tweety)
+        # tweetx,tweety= zip(*tweetxy)
+        vocabsize,tweet_x=buildvocab(tweetx)
+        feats,labels,heldoutfeats,heldout_labels = holdoutdata(tweet_x,tweety,holdoutpercent=holdoutperc)
+        print("Held Out dataset {} Features".format(len(heldout_labels)))
+        # feats=defaultcheck(feats)
+        with open(outputlocation, 'w') as outfile:
+            json.dump([vocabsize,feats,labels,heldoutfeats,heldout_labels], outfile)
+            print("File written to ", outputlocation)

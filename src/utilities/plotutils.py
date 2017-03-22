@@ -35,14 +35,25 @@ def plot_conf_matrix(y_true, y_pred):
 
     y_true = pd.Series(y_true)
     y_pred = pd.Series(y_pred)
-
+    empty=pd.DataFrame(np.zeros((3,3)))
+    # empty.columns = ['0','1','All']
     confmatrix=pd.crosstab(y_true,y_pred, rownames = ['True'], colnames=['Predicted'],margins=True)
+    confmatrixadded = empty.add(confmatrix,fill_value=0).fillna(0)
+    confmatrixadded=confmatrixadded.drop(confmatrixadded.index[2]).drop(2,axis=1).astype(int)
+    # confmatrix.columns=['0','1','All']
+    # confmatrixem=confmatrix.add(empty)
+    # confmatrix=confmatrix.add(empty)
+
     # confmatrix.index=['0','1','All']
     print("============================================Confusion_matrix=======================================")
-    print(confmatrix)
+    print(confmatrixadded)
     print("====================================================================================================")
 
-    return(confmatrix)
+    return(confmatrixadded)
+
+# y_true = np.array([0,0,0,1,1,0])
+# y_pred = np.array([0,0,0,0,0,0])
+# plot_conf_matrix(y_true,y_pred)
 def plotlearningcurve(trainresults,testresults,getevery,TitleOfPlot,savedname,savePlotToFile=False):
     traindatares=pd.read_csv(trainresults,header=0,names=['Time','Step','Value'])
     testdatares=pd.read_csv(testresults,header=0,names=['Time','Step','Value'])
@@ -98,9 +109,9 @@ def calculateModelStats(confmatrix):
     print('Precision:{}'.format(p))
     print('F1 Score:{}'.format(F1))
     print("==========================================================================================================================")
-if __name__ == '__main__':
-    # Plot learning curve for neural network with 1 layers 500 neurons on ashwin Dataset
-    trainresults,testresults,plottitle,savedname = getparams()
-    plotlearningcurve(trainresults,testresults,getevery = 50,
-                    savePlotToFile=True,TitleOfPlot=plottitle,
-                    savedname=savedname)
+# if __name__ == '__main__':
+#     # Plot learning curve for neural network with 1 layers 500 neurons on ashwin Dataset
+#     trainresults,testresults,plottitle,savedname = getparams()
+#     plotlearningcurve(trainresults,testresults,getevery = 50,
+#                     savePlotToFile=True,TitleOfPlot=plottitle,
+#                     savedname=savedname)
