@@ -10,7 +10,7 @@ import argparse
 # testresults = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/Results/DeepNeuralNetwork/test_2_layers.csv'
 # TODO: use savitsky golay filter smoothing
 resultsdir = os.path.abspath("../../Results/")
-
+classdic={'pos':'1','neg':'0'}
 """
 Result Files for evaluation of neural network for Ashwin Dataset
 """
@@ -84,16 +84,18 @@ def plotlearningcurve(trainresults,testresults,getevery,TitleOfPlot,savedname,sa
         plt.savefig(plotsavedir,bbox_inches='tight')
     plt.show()
 
-def calculaterecall(confmatrix):
-    numtruepos=confmatrix.loc['1']['1']
-    numAllTrue=confmatrix.loc['1']['All']
-    recall = (numtruepos)/(numAllTrue)
+def calculaterecall(confmatrix,classval='pos'):
+    val=classdic.get(classval)
+    numtrueclass=confmatrix.loc[val][val]
+    numAllTrue=confmatrix.loc[val]['All']
+    recall = (numtrueclass)/(numAllTrue)
     return(recall)
 
-def calculateprecision(confmatrix):
-    numtruepos=confmatrix.loc['1']['1']
-    numClassedAsPos=confmatrix.loc['All']['1']
-    precision= numtruepos/numClassedAsPos
+def calculateprecision(confmatrix,classval='pos'):
+    val=classdic.get(classval)
+    numtrueclass=confmatrix.loc[val][val]
+    numClassedAsclass=confmatrix.loc['All'][val]
+    precision= numtrueclass/numClassedAsclass
     return(precision)
 
 def calculateF1(r,p):
@@ -104,11 +106,19 @@ def calculateModelStats(confmatrix):
     r=calculaterecall(confmatrix)
     p=calculateprecision(confmatrix)
     F1=calculateF1(r,p)
-    print("===================================Model Stats For Sarcasm Classification accuracy========================================")
+    print("===================================Model Stats For Classifying Sarcasm========================================")
     print('Recall:{}'.format(r))
     print('Precision:{}'.format(p))
     print('F1 Score:{}'.format(F1))
-    print("==========================================================================================================================")
+    print("===========================================================================================================================================")
+    rneg=calculaterecall(confmatrix,classval='neg')
+    pneg=calculateprecision(confmatrix,classval='neg')
+    F1neg=calculateF1(rneg,pneg)
+    print("===================================Model Stats For Classifying Not-Sarcasm========================================")
+    print('Recall:{}'.format(rneg))
+    print('Precision:{}'.format(pneg))
+    print('F1 Score:{}'.format(F1neg))
+    print("===========================================================================================================================================")
 # if __name__ == '__main__':
 #     # Plot learning curve for neural network with 1 layers 500 neurons on ashwin Dataset
 #     trainresults,testresults,plottitle,savedname = getparams()

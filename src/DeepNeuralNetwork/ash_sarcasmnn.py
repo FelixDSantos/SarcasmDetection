@@ -32,7 +32,7 @@ def loadLexAndFeaturesfromjson(path):
 # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
 
-lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/ashfeaturesandlex_holdout_10")
+lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/DNNFeatures/Ash_Feats_Labels_andHoldout")
 lenwholeset=(len(labels)+len(heldout_y))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)
@@ -62,7 +62,9 @@ summaryargs = parser.parse_args()
 runname=summaryargs.runname
 
 out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runname))
-
+savepath=os.path.abspath(os.path.join(os.path.curdir,"SavedModels","Ash","DNN_Ash_SavedModel"))
+if not os.path.exists(savepath):
+    os.makedirs(savepath)
 x = tf.placeholder('float',[None, tweet_length], name ="x" )
 y=tf.placeholder('float', name= "y")
 keep_prob = tf.placeholder("float")
@@ -131,7 +133,6 @@ test_summary_writer = tf.summary.FileWriter(test_summary_loc,sess.graph)
 
 
 sess.run(tf.global_variables_initializer())
-
 def train_neural_network(data):
     testconf = np.zeros(shape=(3,3)).astype(int)
     num_batches=0
@@ -151,7 +152,8 @@ def train_neural_network(data):
             test_summary_writer.add_summary(testsummary,step)
             confmatfortest=utils.plot_conf_matrix(test_class,testpred).as_matrix()
             testconf=testconf+(confmatfortest)
-
+    save_path = saver.save(sess, savepath)
+    print("Model saved in file: %s" % save_path)
     testconf=pd.DataFrame(testconf, columns=['0','1','All'])
     # testconf.index=['0','1','All']
     # print(testconf)
@@ -161,37 +163,42 @@ def train_neural_network(data):
         # print('Epoch',epoch+1, 'completed out of', hm_iter,'loss:',epoch_loss)
         # calculate_acc("\nEvaluation: ",test_x,test_y)
 
-
+saver = tf.train.Saver()
 sess= tf.Session()
 sess.run(tf.global_variables_initializer())
-beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
-print("===================================Evaluation Before Training========================================")
-print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
-print("=====================================================================================================")
-test_summary_writer.add_summary(beforetrain_summary,beforestep)
+# ==========================================
+# Uncomment if want to train model
+# ==========================================
+# beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
+# print("===================================Evaluation Before Training========================================")
+# print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
+# print("=====================================================================================================")
+# test_summary_writer.add_summary(beforetrain_summary,beforestep)
+#
+# trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
+# train_neural_network(trainbatches)
+#
+# test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
+# print("===================================Evaluation After Training On Testing Set========================================")
+# print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
+# print("===================================================================================================================")
+# test_summary_writer.add_summary(testsummary,step)
 
-trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
-train_neural_network(trainbatches)
-
-test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
-print("===================================Evaluation After Training On Testing Set========================================")
-print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
-print("===================================================================================================================")
-test_summary_writer.add_summary(testsummary,step)
-
-
+# Restore variables from disk.
+saver.restore(sess, savepath)
+print("Model restored.")
 # ==========================================
 # Uncomment if want to test model on validation set
 # ==========================================
-# val_pred,valcost,valacc=sess.run([predictions,cost,accuracy],{x:heldout_x,y:heldout_y,keep_prob:1.0})
-# print("")
-# print("")
-# print("")
-# print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_y)))
-# print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
-# print("====================================================================================================================")
-# validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
-# validationconfmatrix.index=['0','1','All']
-# validationconfmatrix.columns = ['0', '1','All']
-# utils.calculateModelStats(validationconfmatrix)
-sess.close()
+val_pred,valcost,valacc=sess.run([predictions,cost,accuracy],{x:heldout_x,y:heldout_y,keep_prob:1.0})
+print("")
+print("")
+print("")
+print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_y)))
+print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
+print("====================================================================================================================")
+validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
+validationconfmatrix.index=['0','1','All']
+validationconfmatrix.columns = ['0', '1','All']
+utils.calculateModelStats(validationconfmatrix)
+# sess.close()

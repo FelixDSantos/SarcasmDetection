@@ -24,7 +24,7 @@ def loadFeaturesfromjson(path):
 # # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 # train_x,train_y,test_x,test_y = loaddatafromjson(sentimentdataset)
 
-vocabsize,tweets,labels,heldout_tweets,heldout_labels=loadFeaturesfromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Ash_CNNFEATS_with10percentholdout_w_vocab')
+vocabsize,tweets,labels,heldout_tweets,heldout_labels=loadFeaturesfromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/CNNFeatures/ashFeats_labelsAndholdout')
 
 lenwholeset=(len(labels)+len(heldout_labels))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(tweets,labels,lenwholeset,80)
@@ -46,10 +46,15 @@ summaryargs = parser.parse_args()
 runname=summaryargs.runname
 
 out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runname))
+savepath=os.path.abspath(os.path.join(os.path.curdir,"SavedModels","Ash","CNN_Ash_SavedModel"))
+if not os.path.exists(savepath):
+    os.makedirs(savepath)
 # ================================
 #Paramaters
 # tweet_length= 376
+# TODO CHANGE NUM EPOCHS TO 25
 num_epochs=25
+# num_epochs=25
 batch_size =300
 test_every=15
 data_length = train_x.shape[1]
@@ -61,8 +66,10 @@ num_filters1=64
 # num_filters2=128
 fc_size= 32
 embedding_size=128
-lamb =0.575
-keepdrop=0.35
+lamb =0.7
+keepdrop=0.5
+# minclip=-0.00001
+# maxclip=0.00001
 # ================================
 # ================================
 #PLACEHOLDERS
@@ -135,6 +142,7 @@ with tf.device('/cpu:0'),tf.name_scope("Word_Embeddings"):
     embedded_chars = tf.nn.embedding_lookup(embeddings, x)
     embedded_chars_expanded = tf.expand_dims(embedded_chars,-1)
 convlayer1,num_feat1 = create_conv_layer(input=embedded_chars_expanded, num_channels=embedding_size,filter_sizes=filter_sizes, num_filters=num_filters1, flatten=True)
+print(convlayer1)
 # convlayer2, num_feat2 = create_conv_layer(input=convlayer1,num_channels= num_filters1, filter_sizes =filter_sizes , num_filters= num_filters2, flatten=True,use_pooling=True)
 dropoutlayer1=tf.nn.dropout(convlayer1,dropoutprob)
 fclayer1,Weights_1,bias1= create_fully_connected_layer(input=dropoutlayer1, num_inputs=num_feat1, num_outputs=fc_size, use_relu=True)
@@ -159,10 +167,10 @@ with tf.name_scope("Optimizer"):
     global_step = tf.Variable(0, name="global_step", trainable= False)
     optimizer = tf.train.AdamOptimizer()
     grads = optimizer.compute_gradients(cost_l2)
-    # train_model=optimizer.apply_gradients(grads,global_step=global_step)
+    train_model=optimizer.apply_gradients(grads,global_step=global_step)
     # gradient clipping
-    capped_grads_and_vars = [(tf.clip_by_value(grad, -0.0001, 0.0001), var) for grad, var in grads]
-    train_model=optimizer.apply_gradients(capped_grads_and_vars,global_step=global_step)
+    # capped_grads_and_vars = [(tf.clip_by_value(grad, minclip, maxclip), var) for grad, var in grads]
+    # train_model=optimizer.apply_gradients(capped_grads_and_vars,global_step=global_step)
 
 
     # capped_grads_and_vars = [(tf.clip_by_norm(gv[0], clip_norm=0.0005, axes=[0]), gv[1]) for gv in grads]
@@ -175,6 +183,7 @@ with tf.name_scope("Accuracy"):
     correct_pred = tf.equal(predictions, tf.argmax(y,1))
     accuracy = tf.reduce_mean(tf.cast(correct_pred,"float"),name="Accuracy")
 
+saver = tf.train.Saver()
 session = tf.Session()
 
 """
@@ -213,30 +222,32 @@ def train_network(data):
             confmatfortest=utils.plot_conf_matrix(test_class,testpred)
             # print(confmatfortest)
             confmatfortest=confmatfortest.as_matrix()
-            # temp=np.zeros(shape=(3,3)).astype(int)
-            # confmatfortest=np.add(temp,confmatfortest)
-            # confmatrixfortest = np.delete(confmatfortest, (1), axis=0)
-            # confmatfortest = np.delete(confmatfortest,(1), axis=1)
-            # print(confmatfortest)
             testconf=np.add(testconf,confmatfortest)
-        w=session.run(Weights_1)
-        largest=max([val for weight in w for val in weight])
-        print(largest)
+    save_path = saver.save(session, savepath)
+    print("Model saved in file: %s" % save_path)
     testconf=pd.DataFrame(testconf, columns=['0','1','All'])
     testconf.index=['0','1','All']
     print(testconf)
 
     utils.calculateModelStats(testconf)
+# ==========================================
+# Uncomment if want to train model
+# ==========================================
+# beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= session.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,dropoutprob:1.0})
+# print("===================================Evaluation Before Training========================================")
+# print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
+# print("=====================================================================================================")
+# test_summary_writer.add_summary(beforetrain_summary,beforestep)
+#
+# trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
+# train_network(trainbatches)
 
-beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= session.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,dropoutprob:1.0})
-print("===================================Evaluation Before Training========================================")
-print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
-print("=====================================================================================================")
-test_summary_writer.add_summary(beforetrain_summary,beforestep)
-
-trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
-train_network(trainbatches)
-
+# ==========================================
+# Uncomment if want to use saved model on
+# validation set
+# ==========================================
+saver.restore(session, savepath)
+print("Model restored.")
 # Uncomment if evaluating on held out dataset
 val_pred,valcost,valacc=session.run([predictions,cost_l2,accuracy],{x:heldout_tweets,y:heldout_labels,dropoutprob:1.0})
 print("")
@@ -249,4 +260,3 @@ validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
 validationconfmatrix.index=['0','1','All']
 validationconfmatrix.columns = ['0', '1','All']
 utils.calculateModelStats(validationconfmatrix)
-# session.close()

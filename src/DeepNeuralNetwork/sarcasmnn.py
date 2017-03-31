@@ -14,11 +14,6 @@ import os
 import argparse
 import pandas as pd
 
-def loaddatafromjson(path):
-    with open(path) as openfile:
-            data = json.load(openfile)
-            return data
-
 def loadLexAndFeaturesfromjson(path):
     with open(path) as openfile:
             data = json.load(openfile)
@@ -31,7 +26,8 @@ def loadLexAndFeaturesfromjson(path):
 # sarcasmdataset ='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_bam_smith.json'
 # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
-lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/bMsLexAndFeaturesW_holdout")
+lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/DNNFeatures/bms_Feats_Labels_andHoldout")
+
 lenwholeset=(len(labels)+len(heldout_y))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)
@@ -57,11 +53,16 @@ lamb = 0.005
 parser = argparse.ArgumentParser(description='Neural Network Arguments')
 parser.add_argument('-summary', action='store', dest='runname',default=str(int((time.time()))),
                     help='Store a runname value')
+# parser.add_argument('-model', action='store', dest='modelsavepath',default=str(int((time.time()))),
+#                     help='Name of model')
 summaryargs = parser.parse_args()
 runname=summaryargs.runname
+# modelname=summaryargs.modelsavepath
 
 out_dir = os.path.abspath(os.path.join(os.path.curdir,"Neural_Network_Runs",runname))
-
+savepath=os.path.abspath(os.path.join(os.path.curdir,"SavedModels","BmS","DNN_BmS_SavedModel"))
+if not os.path.exists(savepath):
+    os.makedirs(savepath)
 x = tf.placeholder('float',[None, tweet_length], name ="x" )
 y=tf.placeholder('float', name= "y")
 keep_prob = tf.placeholder("float")
@@ -84,14 +85,13 @@ def create_neural_network_layer(input, layer_name, num_input, num_outputs, use_r
         output = tf.add(tf.matmul(input,Weights),bias)
         if use_relu:
             output = tf.nn.relu(output)
-    return output,Weights
+    return output,Weights,bias
 
-layer1, Weights_1 = create_neural_network_layer(input = x, layer_name="Hidden_Layer_1", num_input = tweet_length , num_outputs=num_neurons1)
+layer1, Weights_1,bias_1 = create_neural_network_layer(input = x, layer_name="Hidden_Layer_1", num_input = tweet_length , num_outputs=num_neurons1)
 l1dropout= tf.nn.dropout(layer1, keep_prob)
 # layer2 = create_neural_network_layer(input = layer1, layer_name="Hidden_Layer_2", num_input = num_neurons1 , num_outputs=num_neurons2)
 # outputlayer = create_neural_network_layer(input = layer2, layer_name= "Output_Layer", num_input = num_neurons2, num_outputs = num_classes, use_relu=False)
-outputlayer,Weights_Out = create_neural_network_layer(input = l1dropout, layer_name= "Output_Layer", num_input = num_neurons1, num_outputs = num_classes, use_relu=False)
-
+outputlayer,Weights_Out,bias_out = create_neural_network_layer(input = l1dropout, layer_name= "Output_Layer", num_input = num_neurons1, num_outputs = num_classes, use_relu=False)
 predictions = tf.argmax(outputlayer, 1, name="Predictions")
 
 with tf.name_scope("Cost"):
@@ -111,7 +111,7 @@ with tf.name_scope("Accuracy"):
     correct_pred=tf.equal(predictions, tf.argmax(y,1))
     accuracy = tf.reduce_mean(tf.cast(correct_pred,'float'), name="Accuracy")
 
-
+saver = tf.train.Saver()
 sess = tf.Session()
 
 """
@@ -127,8 +127,6 @@ train_summary_writer = tf.summary.FileWriter(train_summary_loc,sess.graph)
 test_summary_operation = tf.summary.merge([cost_summary,accuracy_summary])
 test_summary_loc = os.path.join(out_dir, "summaries", "test")
 test_summary_writer = tf.summary.FileWriter(test_summary_loc,sess.graph)
-
-
 sess.run(tf.global_variables_initializer())
 
 def train_neural_network(data):
@@ -140,6 +138,7 @@ def train_neural_network(data):
         feed_dict_train = {x: batch_x, y: batch_y, keep_prob: 0.5}
         _, step,trainsummary,c,trainacc = sess.run([train_model,global_step,train_summary_operation,cost_l2, accuracy],feed_dict=feed_dict_train)
         num_batches +=1
+        # print(sess.run(outputlayer,feed_dict=feed_dict_train ))
         print("Training Step: {}|| Cost: {}, Accuracy: {}".format(num_batches,c,trainacc))
         train_summary_writer.add_summary(trainsummary,step)
         if(num_batches%test_every==0):
@@ -150,7 +149,8 @@ def train_neural_network(data):
             test_summary_writer.add_summary(testsummary,step)
             confmatfortest=utils.plot_conf_matrix(test_class,testpred).as_matrix()
             testconf=testconf+(confmatfortest)
-
+    save_path = saver.save(sess, savepath)
+    print("Model saved in file: %s" % save_path)
     testconf=pd.DataFrame(testconf, columns=['0','1','All'])
     # testconf.index=['0','1','All']
     # print(testconf)
@@ -161,24 +161,30 @@ def train_neural_network(data):
         # calculate_acc("\nEvaluation: ",test_x,test_y)
 
 
-sess= tf.Session()
-sess.run(tf.global_variables_initializer())
-beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
-print("===================================Evaluation Before Training========================================")
-print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
-print("=====================================================================================================")
-test_summary_writer.add_summary(beforetrain_summary,beforestep)
+# sess= tf.Session()
+# sess.run(tf.global_variables_initializer())
+# ==========================================
+# Uncomment if want to train model
+# ==========================================
+# beforetrain_pred,beforestep,beforetrain_cost, beforetrain_summary, beforetrain_acc= sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
+# print("===================================Evaluation Before Training========================================")
+# print("\nCost: {}, Accuracy: {}\n".format(beforetrain_cost,beforetrain_acc))
+# print("=====================================================================================================")
+# test_summary_writer.add_summary(beforetrain_summary,beforestep)
+#
+# trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
+# train_neural_network(trainbatches)
+#
+# test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
+# print("===================================Evaluation After Training On Testing Set========================================")
+# print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
+# print("===================================================================================================================")
+# test_summary_writer.add_summary(testsummary,step)
 
-trainbatches = dataprep.batch_iter(list(zip(train_x, train_y)), batch_size, num_epochs)
-train_neural_network(trainbatches)
 
-test_pred,step,testcost,testsummary,testacc = sess.run([predictions,global_step,cost_l2,test_summary_operation,accuracy],{x:test_x,y:test_y,keep_prob: 1.0})
-print("===================================Evaluation After Training On Testing Set========================================")
-print("\nCost: {}, Accuracy: {}\n".format(testcost,testacc))
-print("===================================================================================================================")
-test_summary_writer.add_summary(testsummary,step)
-
-
+# Restore variables from disk.
+saver.restore(sess, savepath)
+print("Model restored.")
 # ==========================================
 # Uncomment if want to test model on validation set
 # ==========================================
@@ -193,4 +199,3 @@ validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
 validationconfmatrix.index=['0','1','All']
 validationconfmatrix.columns = ['0', '1','All']
 utils.calculateModelStats(validationconfmatrix)
-sess.close()

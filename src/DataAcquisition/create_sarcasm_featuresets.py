@@ -10,7 +10,6 @@ from tensorflow.contrib import learn
 
 lemmatizer = WordNetLemmatizer()
 # Paramaters
-makejsonfor='c'
 # ashwin dataset:
 ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt'
 # Bamman and Smith
@@ -33,7 +32,7 @@ def create_lexicon(sarcasmset):
     w_counts= Counter(lexicon)
     l2=[]
     # l2 is the final lexicon
-    # we don't want to use words like "the", "and and such"
+    # we don't want to use words like "the"
     for w in w_counts:
         if 1500>w_counts[w]>50:
             l2.append(w)
@@ -41,54 +40,20 @@ def create_lexicon(sarcasmset):
     return l2
 
 
-def createFeaturesFromData(data, lexicon,header=True):
+def createFeaturesFromData(tweetx,tweety, lexicon,header=True):
     featureset=[]
-    with open(data, 'r') as f:
-        if(header==True):
-            header = next(f)
-        # contents= f.readlines()
-        for l in f:
-            fullline=word_tokenize(l.lower())
-            label=fullline[len(fullline)-1]
-            current_words=fullline[:-1]
-            current_words=[lemmatizer.lemmatize(i) for i in current_words]
-            features = np.zeros(len(lexicon))
-            for word in current_words:
-                if word.lower() in lexicon:
-                    index_value=lexicon.index(word.lower())
-                    features[index_value]+= 1
-            features=list(features)
-            if(label=='1'):
-                featureset.append([features,[0,1]])
-            elif(label=='0'):
-                featureset.append([features,[1,0]])
-            else:
-                print('No Label')
+    for index, item in enumerate(tweetx):
+        current_words=word_tokenize(tweetx[index].lower())
+        label=tweety[index]
+        current_words=[lemmatizer.lemmatize(i) for i in current_words]
+        features = np.zeros(len(lexicon))
+        for word in current_words:
+            if word.lower() in lexicon:
+                index_value=lexicon.index(word.lower())
+                features[index_value]+= 1
+        features=list(features)
+        featureset.append([features,label])
     return featureset
-
-# def prepdata(file):
-#     '''
-#     This method is used alternatievly to the above method. It does not create feature vectors.
-#     It only creates two lists. A list for the tweets and a list for the labels
-#     '''
-#     tweet_x=[]
-#     tweet_y=[]
-#     with open(file , 'r') as f:
-#         header = next(f)
-#         for l in f:
-#             l= l.strip().lower()
-#             tweet=l[0:len(l)-3]
-#             label = l[len(l)-1]
-#
-#             if(label == '1'):
-#                 tweet_x.append(tweet)
-#                 tweet_y.append([1,0])
-#             elif(label == '0'):
-#                 tweet_x.append(tweet)
-#                 tweet_y.append([0,1])
-#             else:
-#                 print("No Label")
-#     return tweet_x,tweet_y
 
 def prepdata(file):
     '''
@@ -113,31 +78,15 @@ def prepdata(file):
             else:
                 print("No Label")
     return tweet_x,tweet_y
-# prepdata('/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/SarcasmDataset_Final.txt')
-# lex=create_lexicon('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt')
-#
-# fset= sample_handling('/Users/FelixDSantos/LeCode/DeepLearning/fyp/SarcasmDataset_Final.txt',lex)
 
-def CreateTweetFeatures(sarcasmset,lexicon):
-    # lexicon = create_lexicon(sarcasmset)
+def CreateTweetFeatures(datax,datay,lexicon):
     features=[]
-    features+=createFeaturesFromData(sarcasmset,lexicon)
-    # random.shuffle(features)
+    features+=createFeaturesFromData(datax,datay,lexicon)
     features=np.array(features)
-
-    # features are in the shape [[[0,1,1,1,0],[1,0]],[[1,1,1,0,0],[0,1]]]
-    #  [features,label]
-    # testing_size = int(test_size*len(features))
-
     x=features[:,0]
     y=features[:,1]
-    # train_x = list(features[:,0][:-testing_size])
-    # train_y = list(features[:,1][:-testing_size])
-    #
-    # test_x = list(features[:,0][-testing_size:])
-    # test_y = list(features[:,1][-testing_size:])
     print("{} Tweet Features Created".format(len(y)))
-    return x,y
+    return list(x),list(y)
 #
 def partitionDataToTrainandTest(x,y,lenwholeset,trainingpercent):
     trainingsize=np.floor((trainingpercent/100)*(lenwholeset)).astype(int)
@@ -158,6 +107,7 @@ def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
     x,y = (x[0:(len(y)-validationsize)]).tolist(),(y[0:(len(y)-validationsize)]).tolist()
     x_val,y_val =(x[(len(y)-validationsize):len(y)]),(y[(len(y)-validationsize):len(y)])
     return(x,y,x_val,y_val)
+
 def batch_iter(data, batch_size , num_epochs , shuffle = True):
     """
     Generates a batch iterator for a dataset.
@@ -181,21 +131,23 @@ def batch_iter(data, batch_size , num_epochs , shuffle = True):
             end_index = min((batch_num+1)*batch_size, data_size)
             yield shuffled_data[start_index:end_index]
 
-def buildvocab(tweets):
+def buildvocab(tweets,holdouttweets):
     # this takes each word in dataset and changes it to an integer
     # creates a vocabulary for each word
     # no lemmatizing or any other word preprocessing done
     # returns list of tweet features and a vocabulary
-
-    maxtweetlength = max([len(tweet.split(" ")) for tweet in tweets])
+    wholeset=tweets+holdouttweets
+    maxtweetlength = max([len(tweet.split(" ")) for tweet in wholeset])
     vocabproc = learn.preprocessing.VocabularyProcessor(maxtweetlength)
 
     # creating a vocabulary of the tweets as well as making features of length-max_document_length out of each tweet
-    tweet_feats = np.array(list(vocabproc.fit_transform(tweets)))
+    tweet_feats = (np.array(list(vocabproc.fit_transform(tweets)))).tolist()
+    hold_feats = (np.array(list(vocabproc.fit_transform(holdouttweets)))).tolist()
     vocabsize = len(vocabproc.vocabulary_)
     print("Vocabulary Size: ",vocabsize)
     print("{} tweet features created.".format(len(tweet_feats)))
-    return(vocabsize,tweet_feats)
+    print("{} Hold out tweet features created.".format(len(hold_feats)))
+    return(vocabsize,tweet_feats,hold_feats)
 
 
 def getparamsfornn():
@@ -222,28 +174,35 @@ def getparamsfornn():
     print("Sarcasm Dataset For training:{}".format(datasetloc))
     return(networktype,datasetloc,outputlocation,lexicondataset,holdoutpercent)
 
+def loaddatafromjson(path):
+    with open(path) as openfile:
+            data = json.load(openfile)
+            tweets,labels,heldout_x,heldout_y = data[0],data[1],data[2],data[3]
+
+            return tweets,labels,heldout_x,heldout_y
 
 #
 if __name__ == '__main__':
     # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
     networktype,sarcasmdataset,outputlocation,lexiconloc,holdoutperc=getparamsfornn()
-
+    # ==============================================================================
+    # UNCOMMENT IF YOU WANT TO HOLD OUT DATASET AND SAVE TO JSON
+    # holdoutdata(dataloc=sarcasmdataset,holdoutpercent=holdoutperc)
+    # ==============================================================================
     if(networktype=='d'):
         lexicon=create_lexicon(lexiconloc)
-        features,labels= CreateTweetFeatures(sarcasmdataset,lexicon)
-        features,labels, held_outfeatures,heldout_labels=holdoutdata(features,labels,holdoutpercent=holdoutperc)
-        print("Held Out dataset {} Features".format(len(heldout_labels)))
+        tweetdata,tweetlabels,held_out_x,held_out_y=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_bms")
+        held_outxfeats,held_outyfeats=CreateTweetFeatures(held_out_x,held_out_y,lexicon)
+        tweetx,tweety=CreateTweetFeatures(tweetdata,tweetlabels,lexicon)
+        print("Held Out dataset {} Features".format(len(held_outyfeats)))
         with open(outputlocation, 'w') as outfile:
-            json.dump([lexicon,features,labels,held_outfeatures,heldout_labels], outfile)
+            json.dump([lexicon,tweetx,tweety,held_outxfeats,held_outyfeats], outfile)
             print("File written to ", outputlocation)
     elif(networktype=='c'):
-        tweetx,tweety=prepdata(sarcasmdataset)
-        tweety=np.array(tweety)
-        # tweetx,tweety= zip(*tweetxy)
-        vocabsize,tweet_x=buildvocab(tweetx)
-        feats,labels,heldoutfeats,heldout_labels = holdoutdata(tweet_x,tweety,holdoutpercent=holdoutperc)
-        print("Held Out dataset {} Features".format(len(heldout_labels)))
-        # feats=defaultcheck(feats)
+        tweetdata,tweetlabels,held_out_x,held_out_y=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_Ash")
+        vocabsize,tweet_x,held_out_xfeats=buildvocab(tweetdata,held_out_x)
+        print("Rest of Data: {} Features".format(len(tweetlabels)))
+        print("Held Out dataset {} Features".format(len(held_out_y)))
         with open(outputlocation, 'w') as outfile:
-            json.dump([vocabsize,feats,labels,heldoutfeats,heldout_labels], outfile)
+            json.dump([vocabsize,tweet_x,tweetlabels,held_out_xfeats,held_out_y], outfile)
             print("File written to ", outputlocation)
