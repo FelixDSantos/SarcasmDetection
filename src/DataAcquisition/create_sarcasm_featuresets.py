@@ -177,10 +177,12 @@ def getparamsfornn():
 def loaddatafromjson(path):
     with open(path) as openfile:
             data = json.load(openfile)
-            tweets,labels,heldout_x,heldout_y = data[0],data[1],data[2],data[3]
+            return
 
-            return tweets,labels,heldout_x,heldout_y
-
+def writetojson(path,files):
+    with open(path,'w') as outfile:
+        json.dump(files,outfile)
+        print("File written to ", path)
 #
 if __name__ == '__main__':
     # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
@@ -191,18 +193,16 @@ if __name__ == '__main__':
     # ==============================================================================
     if(networktype=='d'):
         lexicon=create_lexicon(lexiconloc)
-        tweetdata,tweetlabels,held_out_x,held_out_y=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_bms")
+        data=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_bms")
+        tweetdata,tweetlabels,held_out_x,held_out_y= data[0],data[1],data[2],data[3]
         held_outxfeats,held_outyfeats=CreateTweetFeatures(held_out_x,held_out_y,lexicon)
         tweetx,tweety=CreateTweetFeatures(tweetdata,tweetlabels,lexicon)
         print("Held Out dataset {} Features".format(len(held_outyfeats)))
-        with open(outputlocation, 'w') as outfile:
-            json.dump([lexicon,tweetx,tweety,held_outxfeats,held_outyfeats], outfile)
-            print("File written to ", outputlocation)
+        writetojson(outputlocation,[lexicon,tweetx,tweety,held_outxfeats,held_outyfeats])
     elif(networktype=='c'):
-        tweetdata,tweetlabels,held_out_x,held_out_y=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_Ash")
+        data=loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_Ash")
+        tweetdata,tweetlabels,held_out_x,held_out_y=data[0],data[1],data[2],data[3]
         vocabsize,tweet_x,held_out_xfeats=buildvocab(tweetdata,held_out_x)
         print("Rest of Data: {} Features".format(len(tweetlabels)))
         print("Held Out dataset {} Features".format(len(held_out_y)))
-        with open(outputlocation, 'w') as outfile:
-            json.dump([vocabsize,tweet_x,tweetlabels,held_out_xfeats,held_out_y], outfile)
-            print("File written to ", outputlocation)
+        writetojson(outputlocation,[vocabsize,tweet_x,tweetlabels,held_out_xfeats,held_out_y])
