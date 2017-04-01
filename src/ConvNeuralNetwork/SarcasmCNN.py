@@ -12,20 +12,14 @@ import pandas as pd
 import plotutils as utils
 import argparse
 import os
-def loadFeaturesfromjson(path):
-    with open(path) as openfile:
-            data = json.load(openfile)
-            vocabsize,features,labels,heldout_x,heldout_y = data[0],np.array(data[1]),np.array(data[2]),np.array(data[3]),np.array(data[4])
-
-            return vocabsize,features,labels,heldout_x,heldout_y
 #
 # sentimentdataset='/Users/FelixDSantos/LeCode/DeepLearning/sentimentdata.json'
 # sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sentiment_set_nolemmatize.json'
 # # train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 # train_x,train_y,test_x,test_y = loaddatafromjson(sentimentdataset)
 
-vocabsize,tweets,labels,heldout_tweets,heldout_labels=loadFeaturesfromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/CNNFeatures/ashFeats_labelsAndholdout')
-
+data=dataprep.loaddatafromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/CNNFeatures/ashFeats_labelsAndholdout')
+vocabsize,tweets,labels,heldout_tweets,heldout_labels=data[0],np.array(data[1]),np.array(data[2]),np.array(data[3]),np.array(data[4])
 lenwholeset=(len(labels)+len(heldout_labels))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(tweets,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)
