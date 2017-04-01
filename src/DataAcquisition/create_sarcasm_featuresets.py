@@ -16,6 +16,17 @@ ashwinsarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/Cleaned/S
 bMssarcasmdataset = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnSData/SarcasmDataset_Final.txt'
 # both datasets together
 ABmssarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/BnsAndAsh/bnsandash.txt'
+
+def loaddatafromjson(path):
+    with open(path) as openfile:
+            data = json.load(openfile)
+            return data
+
+def writetojson(path,files):
+    with open(path,'w') as outfile:
+        json.dump(files,outfile)
+        print("File written to ", path)
+
 def create_lexicon(sarcasmset):
     # create a lexicon with all strings in positive and negative datasets
     lexicon=[]
@@ -97,7 +108,19 @@ def partitionDataToTrainandTest(x,y,lenwholeset,trainingpercent):
     x_test , y_test = x[trainingsize:len(y)], y[trainingsize:len(y)]
     return(x_train,y_train,x_test,y_test)
 
-def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
+# def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
+#     validationsize = np.floor((holdoutpercent/100)*len(y)).astype(int)
+#     # x,y=np.asarray(x),np.asarray(y)
+#     x,y=np.array(x),np.array(y)
+#     if(shuffle):
+#         shuffleindx = np.random.permutation(np.arange(len(y)))
+#         x,y=x[shuffleindx],y[shuffleindx]
+#     x,y = (x[0:(len(y)-validationsize)]).tolist(),(y[0:(len(y)-validationsize)]).tolist()
+#     x_val,y_val =(x[(len(y)-validationsize):len(y)]),(y[(len(y)-validationsize):len(y)])
+#     return(x,y,x_val,y_val)
+
+def holdoutdata(dataloc,holdoutpercent,outlocation,shuffle=True,defaultcheck=True):
+    x,y=prepdata(dataloc)
     validationsize = np.floor((holdoutpercent/100)*len(y)).astype(int)
     # x,y=np.asarray(x),np.asarray(y)
     x,y=np.array(x),np.array(y)
@@ -106,8 +129,10 @@ def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
         x,y=x[shuffleindx],y[shuffleindx]
     x,y = (x[0:(len(y)-validationsize)]).tolist(),(y[0:(len(y)-validationsize)]).tolist()
     x_val,y_val =(x[(len(y)-validationsize):len(y)]),(y[(len(y)-validationsize):len(y)])
-    return(x,y,x_val,y_val)
-
+    print("Held-Out Data:{} examples".format(len(y_val)))
+    print("Rest of Data:{} examples".format(len(y)))
+    writetojson(outlocation,[x,y,x_val,y_val])
+    return(outlocation)
 def batch_iter(data, batch_size , num_epochs , shuffle = True):
     """
     Generates a batch iterator for a dataset.
@@ -174,16 +199,6 @@ def getparamsfornn():
     print("Sarcasm Dataset For training:{}".format(datasetloc))
     return(networktype,datasetloc,outputlocation,lexicondataset,holdoutpercent)
 
-def loaddatafromjson(path):
-    with open(path) as openfile:
-            data = json.load(openfile)
-            return
-
-def writetojson(path,files):
-    with open(path,'w') as outfile:
-        json.dump(files,outfile)
-        print("File written to ", path)
-#
 if __name__ == '__main__':
     # train_x,train_y,test_x,test_y = CreateTweetTrainAndTest(sarcasmdataset)
     networktype,sarcasmdataset,outputlocation,lexiconloc,holdoutperc=getparamsfornn()

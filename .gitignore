@@ -22,3 +22,7 @@ src/DataAcquisition/__pycache__/__init__.cpython-35.pyc
 src/DataAcquisition/__pycache__/create_sarcasm_featuresets.cpython-35.pyc
 src/DeepNeuralNetwork/Neural_Network_Runs/
 TrainAndTest/
+src/DeepNeuralNetwork/Eval1.py
+src/DeepNeuralNetwork/Eval2.py
+src/DeepNeuralNetwork/Eval3.py
+src/DeepNeuralNetwork/test.py

@@ -9,10 +9,12 @@ import create_sarcasm_featuresets as dataprep
 import time
 from tensorflow.python import debug as tf_debug
 import pandas as pd
-import plotutils as utils
+import utils as utils
 import argparse
 import os
+from utils import printc
 
+holdouttweettext=dataprep.loaddatafromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_bms')[2]
 data=dataprep.loaddatafromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/CNNFeatures/bmsFeats_labelsAndholdout')
 vocabsize,tweets,labels,heldout_tweets,heldout_labels=data[0],np.array(data[1]),np.array(data[2]),np.array(data[3]),np.array(data[4])
 lenwholeset=(len(labels)+len(heldout_labels))
@@ -251,16 +253,23 @@ def train_network(data):
 
 
 saver.restore(session, savepath)
-print("Model restored.")
+printc("Model restored.","blue")
 # Uncomment if evaluating on held out dataset
 val_pred,valcost,valacc=session.run([predictions,cost_l2,accuracy],{x:heldout_tweets,y:heldout_labels,dropoutprob:1.0})
 print("")
 print("")
 print("")
-print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_labels)))
+printc("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_labels)),attributes=['bold'])
 print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
-print("====================================================================================================================")
+printc("====================================================================================================================",attributes=['bold'])
 validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
 validationconfmatrix.index=['0','1','All']
 validationconfmatrix.columns = ['0', '1','All']
 utils.calculateModelStats(validationconfmatrix)
+print("\n")
+printc("======================================================================================================================","red")
+printc("===================================Incorrectly Classified Examples====================================================","red")
+utils.showclassifiedexamples(holdouttweettext,val_class,val_pred)
+printc("======================================================================================================================","green")
+printc("=====================================Correctly Classified Examples====================================================","green")
+utils.showclassifiedexamples(holdouttweettext,val_class,val_pred,num=30,correct=True)

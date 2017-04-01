@@ -6,7 +6,8 @@ sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DataAcquisition
 sys.path.append('/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/utilities')
 # print(sys.path)
 import create_sarcasm_featuresets as dataprep
-import plotutils as utils
+import utils as utils
+from utils import printc
 # import DataAcquisition.create_sarcasm_featuresets as dataprep
 # import utilities.plotutils as utils
 import time
@@ -14,25 +15,11 @@ import os
 import argparse
 import pandas as pd
 
-def loaddatafromjson(path):
-    with open(path) as openfile:
-            data = json.load(openfile)
-            return data
-
-def loadLexAndFeaturesfromjson(path):
-    with open(path) as openfile:
-            data = json.load(openfile)
-            lexicon,features,labels,heldout_x,heldout_y = data[0],np.array(data[1]),np.array(data[2]),np.array(data[3]),np.array(data[4])
-
-            return lexicon,features,labels,heldout_x,heldout_y
-# data used in ashwin paper
-# sarcasmdataset='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_ashwin.json'
-# "Bamman and Smith paper"
-# sarcasmdataset ='/Users/FelixDSantos/LeCode/DeepLearning/fyp/TrainAndTest/sarcasm_set_bam_smith.json'
-# train_x,train_y,test_x,test_y = loaddatafromjson(sarcasmdataset)
 
 
-lexicon,features,labels,heldout_x,heldout_y = loadLexAndFeaturesfromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/DNNFeatures/Ash_Feats_Labels_andHoldout")
+holdouttweettext=dataprep.loaddatafromjson('/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/Holdout/tweetslabelsAndHoldOut_Ash')[2]
+data= dataprep.loaddatafromjson("/Users/FelixDSantos/LeCode/DeepLearning/fyp/FeatureData/DNNFeatures/Ash_Feats_Labels_andHoldout")
+lexicon,features,labels,heldout_x,heldout_y =data[0],np.array(data[1]),np.array(data[2]),np.array(data[3]),np.array(data[4])
 lenwholeset=(len(labels)+len(heldout_y))
 train_x,train_y,test_x,test_y =dataprep.partitionDataToTrainandTest(features,labels,lenwholeset,80)
 test_class=np.argmax(test_y,axis=1)
@@ -194,11 +181,17 @@ val_pred,valcost,valacc=sess.run([predictions,cost,accuracy],{x:heldout_x,y:held
 print("")
 print("")
 print("")
-print("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_y)))
+printc("===================================Evaluation On Unseen Validation Set of {}========================================".format(len(heldout_x)),attributes=['bold'])
 print("\nCost: {}, Accuracy: {}\n".format(valcost,valacc))
-print("====================================================================================================================")
+printc("====================================================================================================================",attributes=['bold'])
 validationconfmatrix=utils.plot_conf_matrix(val_class,val_pred)
 validationconfmatrix.index=['0','1','All']
 validationconfmatrix.columns = ['0', '1','All']
 utils.calculateModelStats(validationconfmatrix)
-# sess.close()
+print("\n")
+printc("======================================================================================================================","red")
+printc("===================================Incorrectly Classified Examples====================================================","red")
+utils.showclassifiedexamples(holdouttweettext,val_class,val_pred)
+printc("======================================================================================================================","green")
+printc("=====================================Correctly Classified Examples====================================================","green")
+utils.showclassifiedexamples(holdouttweettext,val_class,val_pred,num=30,correct=True)

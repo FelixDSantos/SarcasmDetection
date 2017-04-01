@@ -1,0 +1,2 @@
+model_checkpoint_path: "/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DeepNeuralNetwork/SavedModels"
+all_model_checkpoint_paths: "/Users/FelixDSantos/LeCode/DeepLearning/fyp/src/DeepNeuralNetwork/SavedModels"
