@@ -12,8 +12,6 @@ import create_sarcasm_featuresets as dataprep
 # import DataAcquisition.create_sarcasm_featuresets as dataprep
 import numpy as np
 from termcolor import colored
-# trainresults='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Results/DeepNeuralNetwork/train_2layers.csv'
-# testresults = '/Users/FelixDSantos/LeCode/DeepLearning/fyp/Results/DeepNeuralNetwork/test_2_layers.csv'
 # TODO: use savitsky golay filter smoothing
 resultsdir = os.path.abspath("../../Results/")
 classdic={'pos':'1','neg':'0'}

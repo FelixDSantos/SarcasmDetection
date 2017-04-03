@@ -62,26 +62,23 @@ def streamHashtag(hashtag,label,amount):
         if (not tweet.retweeted) and ('RT @' not in tweet.text) and ('@' not in tweet.text) and ('http' not in tweet.text) and(tweet.lang=='en'):
             yield([tweet.text,label])
 
-    # print("{} {}tweets retrieved.".format(hashtag,len(listoftweets)))
-    # return listoftweets
-sarcasmtweets=streamHashtag("#sarcasm",1,1000000)
-# sarcasmtweets+=streamHashtag("#not",1,200000)
-# lensarcasmtweets=sum(1 for x in sarcasmtweets)
-print("Successfully retrieved {} tweets".format('#sarcasm'))
-sarcasmtweets=itertools.chain(sarcasmtweets,streamHashtag("#not",1,200000))
-# lensarcasmtweets=sum(1 for x in sarcasmtweets)
-print("Successfully retrieved {} tweets".format('#sarcasm and #not'))
-nonsarcasm=streamHashtag("a",0,0)
-alltweets=itertools.chain(sarcasmtweets,nonsarcasm)
-tweetstream='/Users/FelixDSantos/LeCode/DeepLearning/fyp/Data/stream/streamedtweets3.txt'
-print("Writing to file {}".format(tweetstream))
-with open(tweetstream, 'a') as newappend:
-    if (os.path.getsize(tweetstream) == 0):
-        newappend.write("Tweet\t\tSarcasm")
-        newappend.write("\n")
-    for tweet in alltweets:
-        newappend.write(tweet[0] + '\t\t' + str(tweet[1]))
-        newappend.write("\n")
-    print("Tweets writting to file {}".format(tweetstream))
-# new_tweets = api.user_timeline(screen_name = screen_name,count=200)
-# tweetIDsToTweettxt(Sarcasmset,TweetOnly)
+def streamtweets(path)
+    sarcasmtweets=streamHashtag("#sarcasm",1,1000000)
+    # sarcasmtweets+=streamHashtag("#not",1,200000)
+    # lensarcasmtweets=sum(1 for x in sarcasmtweets)
+    print("Successfully retrieved {} tweets".format('#sarcasm'))
+    sarcasmtweets=itertools.chain(sarcasmtweets,streamHashtag("#not",1,200000))
+    # lensarcasmtweets=sum(1 for x in sarcasmtweets)
+    print("Successfully retrieved {} tweets".format('#sarcasm and #not'))
+    nonsarcasm=streamHashtag("a",0,0)
+    alltweets=itertools.chain(sarcasmtweets,nonsarcasm)
+    tweetstream=path
+    print("Writing to file {}".format(tweetstream))
+    with open(tweetstream, 'a') as newappend:
+        if (os.path.getsize(tweetstream) == 0):
+            newappend.write("Tweet\t\tSarcasm")
+            newappend.write("\n")
+        for tweet in alltweets:
+            newappend.write(tweet[0] + '\t\t' + str(tweet[1]))
+            newappend.write("\n")
+        print("Tweets writting to file {}".format(tweetstream))

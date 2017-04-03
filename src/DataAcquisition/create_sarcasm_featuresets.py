@@ -33,7 +33,6 @@ def create_lexicon(sarcasmset):
     for fi in[sarcasmset]:
         with open(fi, 'r') as f:
             header = next(f)
-            # contents = f.readlines()
             for l in f:
                 all_words = word_tokenize(l[:-2].lower())
                 lexicon+=list(all_words)
@@ -107,17 +106,6 @@ def partitionDataToTrainandTest(x,y,lenwholeset,trainingpercent):
     x_train , y_train = x[0:trainingsize], y[0:trainingsize]
     x_test , y_test = x[trainingsize:len(y)], y[trainingsize:len(y)]
     return(x_train,y_train,x_test,y_test)
-
-# def holdoutdata(x,y,holdoutpercent,shuffle=True,defaultcheck=True):
-#     validationsize = np.floor((holdoutpercent/100)*len(y)).astype(int)
-#     # x,y=np.asarray(x),np.asarray(y)
-#     x,y=np.array(x),np.array(y)
-#     if(shuffle):
-#         shuffleindx = np.random.permutation(np.arange(len(y)))
-#         x,y=x[shuffleindx],y[shuffleindx]
-#     x,y = (x[0:(len(y)-validationsize)]).tolist(),(y[0:(len(y)-validationsize)]).tolist()
-#     x_val,y_val =(x[(len(y)-validationsize):len(y)]),(y[(len(y)-validationsize):len(y)])
-#     return(x,y,x_val,y_val)
 
 def holdoutdata(dataloc,holdoutpercent,outlocation,shuffle=True,defaultcheck=True):
     x,y=prepdata(dataloc)
